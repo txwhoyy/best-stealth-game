@@ -244,6 +244,9 @@ export class Game {
       this.score = 486;
       this.totalShards = 5;
       this.timesSpotted = 1;
+      // The win screen follows clearing level 3: its shards were grabbed.
+      this.level.shards.forEach((s) => { s.taken = true; });
+      this.shardsCollected = this.level.shards.length;
     }
   }
 }

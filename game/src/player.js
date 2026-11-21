@@ -27,6 +27,7 @@ export class Player {
 
   update(dt, input) {
     this.stepped = false;
+    this.sneaking = !!input.sneak;
     let mx = 0;
     let my = 0;
     if (input.left) mx -= 1;
@@ -52,9 +53,6 @@ export class Player {
     this.moving = len > 0;
     if (!this.moving) return;
 
-    mx /= len;
-    my /= len;
-    this.facing = Math.atan2(my, mx);
     this.sneaking = !!input.sneak;
     const speed = this.sneaking ? SNEAK_SPEED : WALK_SPEED;
     const step = speed * dt;

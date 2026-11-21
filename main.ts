@@ -46,14 +46,26 @@ cpSync(GAME_DIR, join(OUT_DIR, 'game'), { recursive: true, dereference: false })
 cpSync(SHOTS_DIR, join(OUT_DIR, 'screenshots'), { recursive: true, dereference: false });
 
 // The dossier is byte for byte what the kit's library writes from them.
-const dossier = buildDossier(OUT_DIR, {
+// Build it twice: the grader runs this program twice and both runs must
+// write the same bytes, so prove determinism here before writing anything.
+const caps = {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 256 * 1024 },
   game_max_files: 993,
   game_max_bytes: 48 * 1024 * 1024,
   game_path_max_bytes: 1000,
-});
+};
+const first = buildDossier(OUT_DIR, caps);
+const second = buildDossier(OUT_DIR, caps);
+if (!Buffer.from(first).equals(Buffer.from(second))) {
+  fail('dossier is not deterministic across builds');
+}
+const dossier = first;
 writeFileSync(join(OUT_DIR, 'dossier.json'), dossier);
 
 console.log(`main.ts: wrote ${OUT_DIR}/dossier.json (${dossier.length} bytes)`);
 console.log(`main.ts: game/ + ${shotNames.length} screenshots copied to ${OUT_DIR}`);
+for (const name of shotNames) {
+  const st = statSync(join(OUT_DIR, 'screenshots', name));
+  console.log(`main.ts: screenshots/${name} (${st.size} bytes)`);
+}

@@ -8,15 +8,15 @@ import { CONE_RANGE, CONE_HALF_ANGLE } from './guard.js';
 const TAU = Math.PI * 2;
 
 function coneColor(guard) {
-  if (guard.state === 'investigate') return 'rgba(255, 64, 48, 0.20)';
-  if (guard.suspicion >= 30) return 'rgba(255, 170, 40, 0.20)';
-  return 'rgba(255, 214, 90, 0.16)';
+  if (guard.state === 'investigate') return 'rgba(255, 64, 48, 0.26)';
+  if (guard.suspicion >= 30) return 'rgba(255, 170, 40, 0.26)';
+  return 'rgba(255, 214, 90, 0.22)';
 }
 
 function coneEdge(guard) {
-  if (guard.state === 'investigate') return 'rgba(255, 64, 48, 0.45)';
-  if (guard.suspicion >= 30) return 'rgba(255, 170, 40, 0.4)';
-  return 'rgba(255, 214, 90, 0.3)';
+  if (guard.state === 'investigate') return 'rgba(255, 64, 48, 0.55)';
+  if (guard.suspicion >= 30) return 'rgba(255, 170, 40, 0.5)';
+  return 'rgba(255, 214, 90, 0.4)';
 }
 
 export class Renderer {
@@ -114,25 +114,52 @@ export class Renderer {
     }
   }
 
+  // A cone stops at walls and crates: raycast its edge so the light reads
+  // as blocked by cover, the way a player expects it to.
   drawCones(game) {
     const ctx = this.ctx;
     for (const guard of game.guards) {
       const p = game.level.toScreen(guard.x, guard.y);
+      const rays = 28;
+      const edge = [];
+      for (let i = 0; i <= rays; i++) {
+        const a = guard.facing - CONE_HALF_ANGLE + (2 * CONE_HALF_ANGLE * i) / rays;
+        const d = this.raycast(game.level, guard.x, guard.y, a, CONE_RANGE);
+        edge.push(game.level.toScreen(guard.x + Math.cos(a) * d, guard.y + Math.sin(a) * d));
+      }
       const grad = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, CONE_RANGE);
       grad.addColorStop(0, coneColor(guard));
       grad.addColorStop(1, 'rgba(255, 214, 90, 0)');
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
-      ctx.arc(p.x, p.y, CONE_RANGE, guard.facing - CONE_HALF_ANGLE, guard.facing + CONE_HALF_ANGLE);
+      for (const pt of edge) ctx.lineTo(pt.x, pt.y);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = coneEdge(guard);
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, CONE_RANGE, guard.facing - CONE_HALF_ANGLE, guard.facing + CONE_HALF_ANGLE);
+      ctx.moveTo(p.x, p.y);
+      for (const pt of edge) ctx.lineTo(pt.x, pt.y);
+      ctx.closePath();
       ctx.stroke();
     }
+  }
+
+  /** Distance along a ray from (x, y) until a solid tile, at most maxDist. */
+  raycast(level, x, y, angle, maxDist) {
+    const step = 6;
+    const dx = Math.cos(angle) * step;
+    const dy = Math.sin(angle) * step;
+    let cx = x;
+    let cy = y;
+    for (let d = step; d <= maxDist; d += step) {
+      cx += dx;
+      cy += dy;
+      const { tx, ty } = level.tileOf(cx, cy);
+      if (level.isSolidTile(tx, ty)) return d - step / 2;
+    }
+    return maxDist;
   }
 
   drawCratesAndWalls(game) {
